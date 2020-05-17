@@ -1,0 +1,262 @@
+version: "3.7"
+
+services:
+  traefik:
+    image: "traefik:v2.2"
+    container_name: "traefik"
+    environment:
+      - TZ=Europe/Paris
+    ports:
+      - "80:80"
+      - "443:443"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.api.rule=Host(`traefik.domain.name`)"
+      - "traefik.http.routers.api.entrypoints=websecure"
+      - "traefik.http.services.api.loadbalancer.server.port=8080"
+      - "traefik.http.routers.api.tls.certresolver=certResolv"
+      - "traefik.http.routers.api.service=api@internal"
+      - "traefik.http.routers.api.middlewares=auth_api"
+      - "traefik.http.middlewares.auth_api.basicauth.usersfile=/users/usersList"
+    volumes:
+      - "/home/docker/traefik/traefik.toml:/traefik.toml"
+      - "/home/docker/traefik/users:/users"
+      - "/home/docker/traefik/letsencrypt:/etc/traefik/letsencrypt"
+      - "/home/docker/traefik/logs:/logs"
+      - "/var/run/docker.sock:/var/run/docker.sock:ro"
+    networks:
+      - "traefik"
+    restart: unless-stopped
+
+  emby:
+    image: "linuxserver/emby"
+    container_name: emby
+    environment:
+      - PUID=1001
+      - PGID=1001
+      - GIDLIST=1001,44
+      - TZ=Europe/Paris
+      - NVIDIA_VISIBLE_DEVICES=all
+      - NVIDIA_DRIVER_CAPABILITIES=compute,utility,video
+    volumes:
+      - "/home/docker/emby/config:/config"
+      - "/home/docker/medias:/mnt/media"
+    devices:
+      - /dev/dri:/dev/dri
+    #runtime: nvidia
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.emby.rule=Host(`emby.domain.name`)"
+      - "traefik.http.routers.emby.entrypoints=websecure"
+      - "traefik.http.services.emby.loadbalancer.server.port=8096"
+      - "traefik.http.routers.emby.tls.certresolver=certResolv"
+    networks:
+      - "traefik"
+    depends_on:
+      - traefik
+    restart: unless-stopped
+
+  deluge:
+    image: "linuxserver/deluge"
+    container_name: "deluge"
+    environment:
+      - PUID=1001
+      - PGID=1001
+      - TZ=Europe/Paris
+    volumes:
+      - "/home/docker/deluge/config:/config"
+      - "/home/docker/medias/downloads:/downloads"
+      - "/home/docker/medias:/medias"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.deluge.rule=Host(`deluge.domain.name`)"
+      - "traefik.http.routers.deluge.entrypoints=websecure"
+      - "traefik.http.services.deluge.loadbalancer.server.port=8112"
+      - "traefik.http.routers.deluge.tls.certresolver=certResolv"
+      - "traefik.http.routers.deluge.middlewares=auth_deluge@docker"
+      - "traefik.http.middlewares.auth_deluge.basicauth.usersfile=/users/usersList"
+    networks:
+      - "traefik"
+    depends_on:
+      - traefik
+    restart: unless-stopped
+  
+  heimdall:
+    image: "linuxserver/heimdall"
+    container_name: "heimdall"
+    environment:
+      - PUID=1001
+      - PGID=1001
+      - TZ=Europe/Paris
+    volumes:
+      - "/home/docker/heimdall/config:/config"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.heimdall.rule=Host(`search.adomain.name`)"
+      - "traefik.http.routers.heimdall.entrypoints=websecure"
+      - "traefik.http.routers.heimdall.tls.certresolver=certResolv"
+    networks:
+      - "traefik"
+    depends_on:
+      - traefik
+    restart: unless-stopped
+
+  jackett:
+    image: "linuxserver/jackett"
+    container_name: "jackett" 
+    environment:
+      - PUID=1001
+      - PGID=1001
+      - TZ=Europe/Paris
+    volumes:
+      - "/home/docker/jackett/config:/config"
+    labels: 
+      - "traefik.enable=true"
+      - "traefik.http.routers.jackett.rule=Host(`jackett.domain.name`)"
+      - "traefik.http.routers.jackett.entrypoints=websecure"
+      - "traefik.http.routers.jackett.tls.certresolver=certResolv"
+      - "traefik.http.services.jackett.loadbalancer.server.port=9117"
+      - "traefik.http.routers.jackett.middlewares=auth_jackett@docker"
+      - "traefik.http.middlewares.auth_jackett.basicauth.usersfile=/users/usersList"
+    networks:
+      - "traefik"
+    depends_on:
+      - traefik
+    restart: unless-stopped
+  
+  radarr:
+    image: "linuxserver/radarr"
+    container_name: "radarr"
+    environment:
+      - PUID=1001
+      - PGID=1001
+      - TZ=Europe/Paris
+    volumes:
+      - "/home/docker/radarr/config:/config"
+      - "/home/docker/medias/downloads:/downloads"
+      - "/home/docker/medias/Films:/movies"
+    labels: 
+      - "traefik.enable=true"
+      - "traefik.http.routers.radarr.rule=Host(`radarr.domain.name`)"
+      - "traefik.http.routers.radarr.entrypoints=websecure"
+      - "traefik.http.routers.radarr.tls.certresolver=certResolv"
+      - "traefik.http.services.radarr.loadbalancer.server.port=7878"
+      - "traefik.http.routers.radarr.middlewares=auth_radarr@docker"
+      - "traefik.http.middlewares.auth_radarr.basicauth.usersfile=/users/usersList"
+    networks:
+      - "traefik"
+    depends_on:
+      - traefik
+    restart: unless-stopped
+
+  sonarr:
+    image: "linuxserver/sonarr"
+    container_name: "sonarr"
+    environment:
+      - PUID=1001
+      - PGID=1001
+      - TZ=Europe/Paris
+    volumes:
+      - "/home/docker/sonarr/config:/config"
+      - "/home/docker/medias/Series:/tv"
+      - "/home/docker/medias/downloads:/downloads"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.sonarr.rule=Host(`sonarr.domain.name`)"
+      - "traefik.http.routers.sonarr.entrypoints=websecure"
+      - "traefik.http.routers.sonarr.tls.certresolver=certResolv"
+      - "traefik.http.services.sonarr.loadbalancer.server.port=8989"
+      - "traefik.http.routers.sonarr.middlewares=auth_sonarr@docker"
+      - "traefik.http.middlewares.auth_sonarr.basicauth.usersfile=/users/usersList"
+    networks:
+      - "traefik"
+    depends_on:
+      - traefik
+    restart: unless-stopped
+  bazarr:
+    image: "linuxserver/bazarr"
+    container_name: "bazarr"
+    environment:
+      - PUID=1001
+      - PGID=1001
+      - TZ=Europe/Paris
+    volumes:
+      - "/home/docker/bazarr/config:/config"
+      - "/home/docker/medias/Series:/tv"
+      - "/home/docker/medias/Films:/movies"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.bazarr.rule=Host(`bazarr.domain.name`)"
+      - "traefik.http.routers.bazarr.entrypoints=websecure"
+      - "traefik.http.routers.bazarr.tls.certresolver=certResolv"
+      - "traefik.http.services.bazarr.loadbalancer.server.port=6767"
+      - "traefik.http.routers.bazarr.middlewares=auth_bazarr@docker"
+      - "traefik.http.middlewares.auth_bazarr.basicauth.usersfile=/users/usersList"
+    networks:
+      - "traefik"
+    depends_on:
+      - traefik
+    restart: unless-stopped
+
+  mariadB:
+    image: "mariadb"
+    container_name: "mariadB"
+    command: --transaction-isolation=READ-COMMITTED --binlog-format=ROW
+    volumes:
+      - "/usr/docker/volumes/mariadB:/var/lib/mysql"
+    environment:
+      - MYSQL_ROOT_PASSWORD=PASSWORD
+      - MYSQL_PASSWORD=PASSWORD
+      - MYSQL_DATABASE=nextcloud
+      - MYSQL_USER=nextcloud
+    networks:
+      - "nextcloud_network"
+    restart: unless-stopped
+
+  nextcloud:
+    image: "nextcloud"
+    container_name: "nextcloud"
+    environment:
+      - PUID=1001
+      - PGID=1001
+      - TZ=Europe/Paris 
+    volumes:
+      - "/home/docker/nextcloud:/var/www/html"
+      - "/home/docker/cloud_datas/nextcloud:/var/www/html/data"
+      - "/home/docker/medias/Logiciels:/var/www/html/logiciels" 
+      - "/home/docker/nextcloud/config:/var/www/html/config"
+      - "/home/docker/nextcloud/apps:/var/www/html/apps"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.nextcloud.rule=Host(`nextcloud.domain.name`)"
+      - "traefik.http.routers.nextcloud.entrypoints=websecure"
+      - "traefik.http.routers.nextcloud.tls.certresolver=certResolv"
+      - "traefik.http.routers.nextcloud.middlewares=nextcloud_mw@docker"
+      - "traefik.http.middlewares.nextcloud_mw.headers.sslredirect=true"
+      - "traefik.http.middlewares.nextcloud_mw.headers.stsIncludeSubdomains=true"
+      - "traefik.http.middlewares.nextcloud_mw.headers.stsPreload=true"
+      - "traefik.http.middlewares.nextcloud_mw.headers.stsSeconds=15552000"
+      #- "traefik.frontend.redirectregex.permanent: 'true'"
+      #- "traefik.frontend.redirect.regex: https://(.*)/.well-known/(card|cal)dav"
+      #- "traefik.frontend.redirect.replacement: https://$$1/remote.php/dav/"
+    networks:
+      - "traefik"
+      - "nextcloud_network"
+    depends_on:
+      - traefik
+      - mariadB
+    restart: unless-stopped
+  
+  watchtower:
+    image: "containrrr/watchtower"
+    container_name: "watchtower"
+    volumes:
+     # - "/home/docker/watchtower/config.json:/config.json"
+      - "/var/run/docker.sock:/var/run/docker.sock"
+      - "/etc/localtime:/etc/localtime:ro"
+    command: --schedule "0 3 * * * *"
+
+networks:
+  traefik:
+    external: true
+  nextcloud_network:

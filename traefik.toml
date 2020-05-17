@@ -1,0 +1,48 @@
+# traefik.toml
+#####################################################
+# Global Configuration - Traefik v2.2
+#####################################################
+[global]
+  checkNewVersion = false
+  sendAnonymousUsage = false
+
+[entryPoints]
+  [entryPoints.web]
+  address = ":80"
+    [entryPoints.web.http.redirections]
+      [entryPoints.web.http.redirections.entryPoint]
+        to = "websecure"
+        scheme = "https"
+
+  [entryPoints.websecure]
+  address = ":443"
+    [entryPoints.websecure.http.tls]
+      certResolver = "certResolv"
+
+[api]
+  dashboard = true
+
+[log]
+  level = "WARN"
+  filepath = "/logs/traefik.log"
+  format = "common"
+
+[accessLog]
+  filepath = "/logs/access.log"
+  bufferingSize = 100
+
+[certificatesResolvers]
+  [certificatesResolvers.certResolv]
+    [certificatesResolvers.certResolv.acme]
+      email = "mail@mail.com"
+      storage = "/etc/traefik/letsencrypt/acme.json"
+      [certificatesResolvers.certResolv.acme.tlsChallenge]
+      #[certificatesResolvers.certResolv.acme.httpChallenge]
+      #  entryPoint = "web"
+
+[providers]
+  [providers.docker]
+    endpoint = "unix:///var/run/docker.sock"
+    exposedbydefault = false
+    network = "traefik"
+
