@@ -10,6 +10,6 @@ Media server with following services :
 - Bazarr
 - Jackett
 - Heimdall (dashboard)
-- Watchtower (keep containers udpdated)
+- Watchtower (keep containers updated)
 
 Run on zfs raid mirror with ZED for email alert.
